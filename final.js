@@ -44,7 +44,7 @@ let connected = false;
 
 //default page, generate the spotify token, redirect to index.html
 app.get("/", (request, response) => {
-    yourtoken = getToken();
+    //yourtoken = getToken();
     response.redirect("/home")
 });
 
@@ -60,7 +60,7 @@ app.get("/login", (request, response) => {
 
 //handle callbacks
 app.get("/callback", (request, response) => {
-    const query = request.query.error;
+    const error = request.query.error;
     const code = request.query.code;
     const state = request.query.state;
 
@@ -71,8 +71,7 @@ app.get("/callback", (request, response) => {
         return;
     }
 
-    spotifyApi.authorizationCodeGrant(code).then(
-        function(data) {
+    spotifyApi.authorizationCodeGrant(code).then(data => {
           console.log('The token expires in ' + data.body['expires_in']);
           console.log('The access token is ' + data.body['access_token']);
           console.log('The refresh token is ' + data.body['refresh_token']);
@@ -81,19 +80,16 @@ app.get("/callback", (request, response) => {
           spotifyApi.setAccessToken(data.body['access_token']);
           spotifyApi.setRefreshToken(data.body['refresh_token']);
 
-          response.send("Success")
-        },
-        function(err) {
-          console.log('Something went wrong!', err);
-        }
-
-      );
-
-    setInterval(async() => {
-        const data = await spotifyApi.refreshAccessToken();
-        const new_accesstoken = data.body['access_token'];
-        spotifyApi.setAccessToken(new_accesstoken);
-    }, expires_in);
+          response.send("Login was a success")
+            
+        setInterval(async() => {
+            const data = await spotifyApi.refreshAccessToken();
+            const new_accesstoken = data.body['access_token'];
+            spotifyApi.setAccessToken(new_accesstoken);
+        }, data.body['expires_in']);
+    }),function(err) {
+        console.log('Something went wrong!', err);
+    }
 });
 
 //Do Search page
@@ -123,6 +119,8 @@ app.get("/showmytoken", (request, response) => {
     //console.log(getTrackInfo(yourtoken));
     response.render("showmytoken", {yourtoken});
 });
+
+
  
 
 //404
