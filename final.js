@@ -10,7 +10,7 @@ const path = require("path");
 app.set("views", path.join(__dirname, ".\\"));
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true }));
-let portNumber;
+let portNumber = 5050;
 
 
 //mangoDB
@@ -21,20 +21,108 @@ const uri = MONGO_CONNECTION_STRING = `mongodb+srv://${username}:${password}@clu
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const client = new MongoClient(uri, { serverApi: ServerApiVersion.v1 });
 
-
+//spotify args
+let yourtoken = "NOTYETRETRIEVED";
+let SpotifyWebApi = require('spotify-web-api-node');
+var spotifyApi = new SpotifyWebApi({
+    clientId: process.env.CLIENTID,
+    clientSecret: process.env.CLIENTSECRET,
+    redirectUri: process.env.REDIRECTURL
+});
+const scopes = ['user-read-private', 'user-read-email', 'user-read-playback-state', 'user-modify-playback-state'],
+  redirectUri = process.env.REDIRECTURL,
+  clientId = process.env.CLIENTID,
+  state = 'user-read-playback-state';
+var authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
 
 // Process args
-let counter = 0;
 let connected = false;
 
 
 
 //Render appropriate pages
 
-//index page
+//default page, generate the spotify token, redirect to index.html
 app.get("/", (request, response) => {
-    response.render("index");
- });
+    yourtoken = getToken();
+    response.redirect("/home")
+});
+
+//homepage
+app.get("/home", (request, response) => {
+    response.render("index")
+});
+
+//Login page
+app.get("/login", (request, response) => {
+    response.redirect(spotifyApi.createAuthorizeURL(scopes));
+});
+
+//handle callbacks
+app.get("/callback", (request, response) => {
+    const query = request.query.error;
+    const code = request.query.code;
+    const state = request.query.state;
+
+    if(error){
+        let errortext = `Error ${error}`;
+        console.error(errortext);
+        response.send(errortext);
+        return;
+    }
+
+    spotifyApi.authorizationCodeGrant(code).then(
+        function(data) {
+          console.log('The token expires in ' + data.body['expires_in']);
+          console.log('The access token is ' + data.body['access_token']);
+          console.log('The refresh token is ' + data.body['refresh_token']);
+      
+          // Set the access token on the API object to use it in later calls
+          spotifyApi.setAccessToken(data.body['access_token']);
+          spotifyApi.setRefreshToken(data.body['refresh_token']);
+
+          response.send("Success")
+        },
+        function(err) {
+          console.log('Something went wrong!', err);
+        }
+
+      );
+
+    setInterval(async() => {
+        const data = await spotifyApi.refreshAccessToken();
+        const new_accesstoken = data.body['access_token'];
+        spotifyApi.setAccessToken(new_accesstoken);
+    }, expires_in);
+});
+
+//Do Search page
+app.get("/search", (request, response) => {
+    const {query} = request.query;
+    spotifyApi.searchTracks(query).then(searchData=>{
+        const trackURL = searchData.body.tracks.items[0].uri;
+        response.send({uri:trackURL});
+    }).catch(error=>{
+        response.send("Error:", error);
+    })
+
+});
+
+app.get("/play", (request, response) => {
+    const {url} = request.query;
+    spotifyApi.play({uris:url}).then(()=>{
+        response.send('started playing')
+    }).catch(error=>{
+        response.send('error playing the song')
+    })
+});
+
+//showmytoken page
+app.get("/showmytoken", (request, response) => {
+    console.log(yourtoken);
+    //console.log(getTrackInfo(yourtoken));
+    response.render("showmytoken", {yourtoken});
+});
  
 
 //404
@@ -48,6 +136,43 @@ app.use((request, response) => {
 
 
 //MongoDB funcs
+
+
+//Spotify functions, etc
+
+//to fetch the user's token, per the spotify guide we want to
+//from the example from spotify here given here https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
+//https://github.com/spotify/web-api-examples/blob/master/authorization/client_credentials/app.js
+async function getToken() {
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      body: new URLSearchParams({
+        'grant_type': 'client_credentials',
+      }),
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + (Buffer.from(process.env.CLIENTID + ':' + process.env.CLIENTSECRET).toString('base64')),
+      },
+    });
+  
+    return await response.json();
+  }
+//https://github.com/spotify/web-api-examples/blob/master/authorization/client_credentials/app.js
+  async function getTrackInfo(access_token) {
+    const response = await fetch("https://api.spotify.com/v1/tracks/4cOdK2wGLETKBW3PvgPWqT", {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + access_token },
+    });
+  
+    return await response.json();
+  }
+  
+  getToken().then(response => {
+    getTrackInfo(response.access_token).then(profile => {
+      console.log(profile)
+    })
+  });
+
 
 
 
@@ -67,21 +192,9 @@ async function connectToDatabase() {
 async function startServer(){
     const dbConnected = await connectToDatabase().catch(console.error);
     let args = [...argv]
-    let counter = 0; 
 
-    for (const val of args) {
-        counter++;
-        if (counter === 3) {
-            portNumber = val;
-        }
-    }
-    
-    if (counter < 3){//not enough args
-        console.log("Usage final.js portnum");
-        process.exit(0);
-    }
-    
 
+    //using port 5050
     if (dbConnected) {
         app.listen(portNumber, () => {
             console.log(`Web server started and running at http://localhost:${portNumber}`);
