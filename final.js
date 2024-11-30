@@ -34,6 +34,7 @@ const scopes = ['user-read-private', 'user-read-email', 'user-read-playback-stat
   clientId = process.env.CLIENTID,
   state = 'user-read-playback-state';
 var authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
+const tracklimit = 10; //number of tracks to return from a search
 
 // Process args
 let connected = false;
@@ -44,19 +45,20 @@ let connected = false;
 
 //default page, generate the spotify token, redirect to index.html
 app.get("/", (request, response) => {
-    //yourtoken = getToken();
-    response.redirect("/home")
+    response.render("index")
 });
 
 //homepage
 app.get("/home", (request, response) => {
-    response.render("index")
+    response.render("home");
 });
 
 //Login page
 app.get("/login", (request, response) => {
     response.redirect(spotifyApi.createAuthorizeURL(scopes));
 });
+
+app.get("")
 
 //handle callbacks
 app.get("/callback", (request, response) => {
@@ -72,15 +74,16 @@ app.get("/callback", (request, response) => {
     }
 
     spotifyApi.authorizationCodeGrant(code).then(data => {
-          console.log('The token expires in ' + data.body['expires_in']);
-          console.log('The access token is ' + data.body['access_token']);
-          console.log('The refresh token is ' + data.body['refresh_token']);
+          //console.log('The token expires in ' + data.body['expires_in']);
+          //console.log('The access token is ' + data.body['access_token']);
+          //console.log('The refresh token is ' + data.body['refresh_token']);
       
           // Set the access token on the API object to use it in later calls
           spotifyApi.setAccessToken(data.body['access_token']);
           spotifyApi.setRefreshToken(data.body['refresh_token']);
 
-          response.send("Login was a success")
+          
+          response.redirect("home");
             
         setInterval(async() => {
             const data = await spotifyApi.refreshAccessToken();
@@ -93,33 +96,59 @@ app.get("/callback", (request, response) => {
 });
 
 //Do Search page
-app.get("/search", (request, response) => {
-    const {query} = request.query;
-    spotifyApi.searchTracks(query).then(searchData=>{
-        const trackURL = searchData.body.tracks.items[0].uri;
-        response.send({uri:trackURL});
+app.get("/search", async (request, response) => {
+    const {q} = request.query;
+    //console.log(request)
+    //console.log("\n\nSearch Query: ", q,"\n\n");
+
+    const tokenData = await spotifyApi.clientCredentialsGrant();
+    spotifyApi.setAccessToken(tokenData.body.access_token);
+
+    spotifyApi.searchTracks(q, { limit: tracklimit}).then(searchData=>{
+        //const trackURL = searchData.body.tracks.items[0].uri;
+        console.log(`Got ${searchData.body.tracks.items.length} songs`);
+        /*console.log("TrackResponse: ", searchData);
+        searchData.body.tracks.items.forEach((item, index) =>{
+            console.log(`Track #${index}: ${item.name}`);
+        });*/ //This returned a list of tracks, yipee
+        let reply = searchData.body.tracks;
+        console.log(reply);
+        response.json(reply);
     }).catch(error=>{
-        response.send("Error:", error);
+        console.error("Error:", error);
+        response.status(500).send({ error: error.message });
     })
 
 });
 
-app.get("/play", (request, response) => {
-    const {url} = request.query;
-    spotifyApi.play({uris:url}).then(()=>{
+
+
+app.get("/search-and-play", async (request, response) => {
+    const q = request.body.q;
+    let trackURL;
+
+    console.log("trying to search and play: ", q)
+    
+    const tokenData = await spotifyApi.clientCredentialsGrant();
+    spotifyApi.setAccessToken(tokenData.body.access_token);
+
+    spotifyApi.searchTracks(q).then(searchData=>{
+        trackURL = searchData.body.tracks.items[0].uri;
+    }).catch(error=>{
+        console.error("Error:", error);
+        response.status(500).send({ error: error.message });
+    }).then(
+
+    //play the song
+    spotifyApi.play({uris:[trackURL]}).then(()=>{
         response.send('started playing')
     }).catch(error=>{
-        response.send('error playing the song')
-    })
-});
+        console.error("Error:", error);
+        response.status(500).send({ error: error.message });
+    }))
 
-//showmytoken page
-app.get("/showmytoken", (request, response) => {
-    console.log(yourtoken);
-    //console.log(getTrackInfo(yourtoken));
-    response.render("showmytoken", {yourtoken});
+    console.log("Searched for song:", query);
 });
-
 
  
 
@@ -135,41 +164,6 @@ app.use((request, response) => {
 
 //MongoDB funcs
 
-
-//Spotify functions, etc
-
-//to fetch the user's token, per the spotify guide we want to
-//from the example from spotify here given here https://developer.spotify.com/documentation/web-api/tutorials/client-credentials-flow
-//https://github.com/spotify/web-api-examples/blob/master/authorization/client_credentials/app.js
-async function getToken() {
-    const response = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      body: new URLSearchParams({
-        'grant_type': 'client_credentials',
-      }),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + (Buffer.from(process.env.CLIENTID + ':' + process.env.CLIENTSECRET).toString('base64')),
-      },
-    });
-  
-    return await response.json();
-  }
-//https://github.com/spotify/web-api-examples/blob/master/authorization/client_credentials/app.js
-  async function getTrackInfo(access_token) {
-    const response = await fetch("https://api.spotify.com/v1/tracks/4cOdK2wGLETKBW3PvgPWqT", {
-      method: 'GET',
-      headers: { 'Authorization': 'Bearer ' + access_token },
-    });
-  
-    return await response.json();
-  }
-  
-  getToken().then(response => {
-    getTrackInfo(response.access_token).then(profile => {
-      console.log(profile)
-    })
-  });
 
 
 

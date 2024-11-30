@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="Kevin Canha" content="CMSC335">
+    <title>Spotterbox'd</title>
+</head>
+
+
+<body>
+    <h2>Welcome to the homepage of Spotterbox'd</h2>
+   
+    Idk, play a song or something...
+
+    <form id="searchForm">
+        <label for="searchbox">Search:</label>
+        <input type="text" id="searchbox" name="searchbox"><br>
+        <label for="track">Track?</label>
+        <input type="checkbox" id="track" name="track"><br>
+        <input type="submit" value="Search">
+    </form>
+    <br>
+    <div id="displayZone"></div>
+
+
+    <script>
+        document.getElementById('searchForm').onsubmit = async function (e) {
+                e.preventDefault(); // Prevent default form submission
+                let q = document.getElementById('searchbox').value;
+                let track = document.getElementById('track').value;
+                if(track){
+                    q+="&type=track";
+                }
+                console.log("\n\nSearch Query: ", q,"\n\n");
+                if (q) {
+                    console.log("searching")
+                    try {
+                    const response = await fetch(`/search?q=${q}`);
+                    const result = await response.json();
+    
+                    if (result) {
+                        console.log("Resulet: ", result);
+                        let table = "<table border=\"1\">";
+                        table += "<tr><th>Result#</th><th>Song Title</th></tr>"
+                        result.items.forEach((item, index) =>{
+                            table+=`<tr><td>${index+1}</td><td><a href="${item.uri}">${item.name}</a></td></tr>`
+                        });
+                        table += "</table>";
+                        document.getElementById("displayZone").innerHTML = table;
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred while processing your request.');
+                }
+    
+    
+    
+                } else {
+                    alert('Please enter a song name to search.');
+                }
+            };
+    </script>
+</body>
+
