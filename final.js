@@ -10,6 +10,7 @@ const path = require("path");
 app.set("views", path.join(__dirname, ".\\"));
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 let portNumber = 5050;
 
 
@@ -106,13 +107,13 @@ app.get("/search", async (request, response) => {
 
     spotifyApi.searchTracks(q, { limit: tracklimit}).then(searchData=>{
         //const trackURL = searchData.body.tracks.items[0].uri;
-        console.log(`Got ${searchData.body.tracks.items.length} songs`);
+        console.log(`\nGot ${searchData.body.tracks.items.length} songs`);
         /*console.log("TrackResponse: ", searchData);
         searchData.body.tracks.items.forEach((item, index) =>{
             console.log(`Track #${index}: ${item.name}`);
         });*/ //This returned a list of tracks, yipee
         let reply = searchData.body.tracks;
-        console.log(reply);
+        //console.log(reply);
         response.json(reply);
     }).catch(error=>{
         console.error("Error:", error);
@@ -150,7 +151,30 @@ app.get("/search-and-play", async (request, response) => {
     console.log("Searched for song:", query);
 });
 
- 
+app.get("/get_reviews_for", async (request, response) => {
+    const { songTitle } = request.query;
+    //console.log("asking for reviews for ", songTitle);
+    let temp = await getAllReviews_forSong(songTitle);
+    
+    response.json(temp);
+});
+
+app.post("/leave_review_for", async (request, response) => {
+    const { songTitle, review } = request.body;
+    console.log(`Leaving a review for ${songTitle} that says ${review}`);
+    let ret = insertReview({songTitle: songTitle, review: review});
+    console.log("Meow, hear");
+    response.json({songTitle: songTitle, review: review});
+});
+
+app.get("/get_number_reviews", async (request, response) => {
+    const { songTitle } = request.query;
+    //console.log("asking for reviews for ", songTitle);
+    let temp = await getAllReviews_forSong(songTitle);
+    let x = temp.length;
+    //console.log("val:",x);
+    response.json({length: x});
+});
 
 //404
 app.use((request, response) => {
@@ -163,6 +187,40 @@ app.use((request, response) => {
 
 
 //MongoDB funcs
+async function insertReview(review){
+    dbName = process.env.MONGO_DB_NAME;
+    collectionName = process.env.MONGO_COLLECTION;
+    
+    const result = await client.db(dbName).collection(collectionName).insertOne(review);
+    console.log("left a review, result: ", result);
+    return result;
+   
+}
+async function getAllReviews(){
+    dbName = process.env.MONGO_DB_NAME;
+    collectionName = process.env.MONGO_COLLECTION;
+   
+    const result = await client.db(dbName).collection(collectionName).find({});
+    const ret = await result.toArray();
+    return ret;
+}
+
+async function getAllReviews_forSong(song){
+    dbName = process.env.MONGO_DB_NAME;
+    collectionName = process.env.MONGO_COLLECTION;
+    //console.log("getting reveiws for: ", song)
+    const result = await client.db(dbName).collection(collectionName).find({});
+    const array = await result.toArray();
+    let ret = [];
+    array.forEach(item =>{
+        if(item.songTitle === song){
+            //console.log(item.songTitle, ": matches :", song);
+            ret.push(item);
+        }
+    });
+    //console.log("all reviews:", ret);
+    return ret;
+}
 
 
 
