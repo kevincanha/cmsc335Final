@@ -31,3 +31,10 @@ div {
 form {
     text-align: left;
 }
+
+a {
+    color: limegreen;
+}
+a:hover {
+    color: hotpink;
+  }
