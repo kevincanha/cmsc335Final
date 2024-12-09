@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="Kevin Canha" content="CMSC335">
     <title>Spotterbox'd</title>
+    <link rel="stylesheet" href="style.css"  type="text/css">
 </head>
 
 
@@ -45,7 +46,7 @@
                     if (result) {
 
                         //console.log("Resulet: ", result);
-                        let table = "<form id=\"reviewform\" onsubmit=\"reviewSubmit(event)\"><table border=\"1\">";
+                        let table = "<form id=\"reviewform\" onsubmit=\"reviewSubmit(event)\"><table>";
                         table += "<tr><th>Result#</th><th>Song Title</th><th>Select4Review</th><th>Reviews</th></tr>"
                         for (const [index, item] of result.items.entries()) {
                             numreviews = await fetch(`/get_number_reviews?songTitle=${item.name}`);
@@ -109,7 +110,7 @@
 
                 if(reviews.length > 0){
 
-                table = "<br><table border=\"1\">";
+                table = "<br><table>";
                 table += `<tr><th>Reviews for "${songTitle}"</tr></th>`;
                 //console.log(reviews);
 
