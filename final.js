@@ -19,7 +19,7 @@ let portNumber = 5050;
 require("dotenv").config({ path: path.resolve(__dirname, 'credentialsDontPost/.env') })
 username = process.env.MONGO_DB_USERNAME;
 password = process.env.MONGO_DB_PASSWORD;
-const uri = MONGO_CONNECTION_STRING = `mongodb+srv://${username}:${password}@cluster0.zxafx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`
+const uri = MONGO_CONNECTION_STRING = process.env.MONGO_CONNECTION_STRING
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const client = new MongoClient(uri, { serverApi: ServerApiVersion.v1 });
 
