@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="Kevin Canha" content="CMSC335">
+    <title>Spotterbox'd</title>
+    <link rel="stylesheet" href="style.css"  type="text/css">
+</head>
+
+
+<body>
+    <h2>Welcome to the homepage of Spotterbox'd</h2>
+   
+    Idk, play a song or something...
+
+    <form id="searchForm">
+        <label for="searchbox">Search:</label>
+        <input type="text" id="searchbox" name="searchbox"><br>
+        <label for="track">Track?</label>
+        <input type="checkbox" id="track" name="track" checked><br>
+        <input type="submit" value="Search">
+    </form>
+    <br>
+    <div id="displayZone"></div>
+    <div id="displayZone2"></div>
+
+    <script>
+        document.getElementById('searchForm').onsubmit = async function (e) {
+            updateReviews(e);
+        }
+        async function updateReviews(e){
+                let numreviews = 0; //number of reviews for each song
+                e.preventDefault(); // Prevent default form submission
+                let q = document.getElementById('searchbox').value;
+                let track = document.getElementById('track').value;
+                if(track){
+                    q+="&type=track";
+                }
+                //console.log("\n\nSearch Query: ", q,"\n\n");
+                if (q) {
+                    //console.log("searching")
+                    try {
+                    const response = await fetch(`/search?q=${q}`);
+                    const result = await response.json();
+    
+                    if (result) {
+
+                        //console.log("Resulet: ", result);
+                        let table = "<form id=\"reviewform\" onsubmit=\"reviewSubmit(event)\"><table>";
+                        table += "<tr><th>Result#</th><th>Song Title</th><th>Select4Review</th><th>Reviews</th></tr>"
+                        for (const [index, item] of result.items.entries()) {
+                            numreviews = await fetch(`/get_number_reviews?songTitle=${item.name}`);
+                            let temp = await numreviews.json();
+                            //console.log("REviews", temp.length);
+                            table+=`<tr>
+                                    <td>${index+1}</td>
+                                    <td><a href="${item.uri}">${item.name}</a></td>
+                                    <td><input type="radio" name="selectedSong" value="${item.name}" id="${item.name}"></td>
+                                    <td><a href="javascript:void(0)" onclick="showReviews('${item.name}')">${temp.length}</a></td>
+                                    </tr>`
+                        };
+                        table += `</table><br>
+                                    <label for="review">Leave a review:</label>
+                                    <input type="text" id="review" name="review"><br>
+                                    <input type="submit">
+                                    </form>`;
+                        document.getElementById("displayZone").innerHTML = table;
+                    } else {
+                        alert('Error: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred while processing your request.');
+                }
+    
+    
+    
+                } else {
+                    alert('Please enter a song name to search.');
+                }
+            };
+
+            async function reviewSubmit(e){
+                e.preventDefault();
+                let review = document.getElementById('review').value;
+                let songTitle = document.querySelector('input[name="selectedSong"]:checked').value;
+                let text = `You left a review for ${songTitle} saying:${review}`;
+
+                const response = await fetch('/leave_review_for', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',  // Set the content type to JSON
+                },
+                body: JSON.stringify({
+                    songTitle: songTitle,
+                    review: review,
+                })
+                });
+                let ret = await response.json();
+                //console.log(`You left a review for ${ret.songTitle} saying:${ret.review}`);
+
+                document.getElementById("displayZone2").innerHTML = text;
+                updateReviews(e);
+            };
+
+            async function showReviews(songTitle){
+                temp = await fetch(`/get_reviews_for?songTitle=${songTitle}`);
+                let reviews = await temp.json();
+                let table = "";
+
+                if(reviews.length > 0){
+
+                table = "<br><table>";
+                table += `<tr><th>Reviews for "${songTitle}"</tr></th>`;
+                //console.log(reviews);
+
+                reviews.forEach(item => {
+                    table += `<tr><td>${item.review}</td></tr>`;
+                });
+                table += "</table>";
+            }else{
+                table = `<br><h3>There are no reviews yet for ${songTitle}`
+            }
+                document.getElementById("displayZone2").innerHTML = table;
+            };
+            
+        
+    </script>
+</body>
+

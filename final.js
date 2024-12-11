@@ -7,7 +7,7 @@ const app = express();  /* app is a request handler function */
 // Set EJS as the view engine
 app.set("view engine", "ejs");
 const path = require("path");
-app.set("views", path.join(__dirname, ".\\"));
+app.set("views", path.resolve(__dirname, "templates"));
 const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
