@@ -47,12 +47,12 @@ let connected = false;
 
 //default page, generate the spotify token, redirect to index.html
 app.get("/", (request, response) => {
-    response.render("index")
+    response.render("index.ejs")
 });
 
 //homepage
 app.get("/home", (request, response) => {
-    response.render("home");
+    response.render("home.ejs");
 });
 
 //Login page
@@ -85,7 +85,7 @@ app.get("/callback", (request, response) => {
           spotifyApi.setRefreshToken(data.body['refresh_token']);
 
           
-          response.redirect("home");
+          response.redirect("home.ejs");
             
         setInterval(async() => {
             const data = await spotifyApi.refreshAccessToken();
